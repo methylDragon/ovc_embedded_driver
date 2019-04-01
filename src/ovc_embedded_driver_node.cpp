@@ -3,6 +3,11 @@
 #include <thread>
 #include <ros/ros.h>
 #include <image_transport/image_transport.h>
+
+#include <topic_tools/shape_shifter.h>
+#include <ros/message_traits.h>
+#include <sstream>
+
 #include <sensor_msgs/fill_image.h>
 #include <ovc_embedded_driver/vdma_driver.h>
 
@@ -13,14 +18,33 @@
 
 const int DMA_DEVICES[7] = {1,2,3,4,5,6,7}; // From hardware
 
+template <typename T>
+void SerializeToByteArray(const T& msg, std::vector<uint8_t>& destination_buffer)
+{ 
+  const uint32_t length = ros::serialization::serializationLength(msg);
+  destination_buffer.resize( length );
+  //copy into your own buffer 
+  ros::serialization::OStream stream(destination_buffer.data(), length);
+  ros::serialization::serialize(stream, msg);
+}
+
 void publish(int device_num)
 {
   VDMADriver vdma(DMA_DEVICES[device_num], FRAME_BASEADDR + \
                   device_num * CAMERA_OFFSET, FRAME_OFFSET);
   ros::NodeHandle nh;
-  image_transport::ImageTransport it(nh);
+
+  topic_tools::ShapeShifter shape_shifter;
+  shape_shifter.morph(
+                  ros::message_traits::MD5Sum<sensor_msgs::Image>::value(),
+                  ros::message_traits::DataType<sensor_msgs::Image>::value(),
+                  ros::message_traits::Definition<sensor_msgs::Image>::value(),
+                  "");
+  
+  std::vector<uint8_t> buffer;
+
   std::string topic_name("ovc/image" + std::to_string(device_num));
-  image_transport::Publisher pub = it.advertise(topic_name.c_str(), 1);
+  ros::Publisher pub = shape_shifter.advertise(nh, topic_name.c_str(), 1);
   sensor_msgs::Image msg;
   msg.data.resize(266*1280*3);
   msg.height = 266*3;
@@ -29,11 +53,25 @@ void publish(int device_num)
   msg.step = 1280;
   int count = 0;
   ros::Time prev_time = ros::Time::now();
+  bool message_full = false;
   while (ros::ok())
   {
     msg.header.stamp = ros::Time::now();
-    memcpy(&msg.data[0], vdma.getImage(), 1280*266*3);
-    pub.publish(msg);
+    // Fill the message
+    void* image_ptr = vdma.getImage();
+    if (message_full == false)
+    {
+      memcpy(&msg.data[0], image_ptr, 1280*266*3);
+      SerializeToByteArray(msg, buffer);
+    }
+    message_full = true;
+    // Publish
+    //ros::serialization::OStream stream(buffer.data(), buffer.size());
+    // TODO: OPTIMIZE HERE
+    //shape_shifter.read(stream);
+    shape_shifter.assign_data(buffer.data(), buffer.size());
+    pub.publish(shape_shifter);
+    //pub.publish(msg);
     ros::Time cur_time = ros::Time::now();
     float interval = (cur_time - prev_time).toSec();
     if (interval > 0.05)
