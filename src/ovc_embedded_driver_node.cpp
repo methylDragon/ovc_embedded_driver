@@ -1,14 +1,12 @@
-#include <iostream>
 #include <vector>
 #include <thread>
+#include <memory>
 #include <ros/ros.h>
-#include <image_transport/image_transport.h>
 
+#include <sensor_msgs/Image.h>
 #include <topic_tools/shape_shifter.h>
 #include <ros/message_traits.h>
-#include <sstream>
 
-#include <sensor_msgs/fill_image.h>
 #include <ovc_embedded_driver/vdma_driver.h>
 
 #define NUM_CAMERAS 7
@@ -74,14 +72,9 @@ void publish(int device_num)
 int main(int argc, char **argv)
 {
   ros::init(argc, argv, "ovc_embedded_driver_node");
-  // TODO change to iterative initialization
-  std::thread t0(publish,0);
-  std::thread t1(publish,1);
-  std::thread t2(publish,2);
-  std::thread t3(publish,3);
-  std::thread t4(publish,4);
-  std::thread t5(publish,5);
-  std::thread t6(publish,6);
+  std::unique_ptr<std::thread> threads[NUM_CAMERAS];
+  for (int i=0; i<NUM_CAMERAS; ++i)
+    threads[i] = std::make_unique<std::thread>(publish,i);
   
-  t0.join();
+  threads[0]->join();
 }
