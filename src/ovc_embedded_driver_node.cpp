@@ -30,8 +30,6 @@ void SerializeToByteArray(const T& msg, std::vector<uint8_t>& destination_buffer
 
 void publish(int device_num)
 {
-  VDMADriver vdma(DMA_DEVICES[device_num], FRAME_BASEADDR + \
-                  device_num * CAMERA_OFFSET, FRAME_OFFSET);
   ros::NodeHandle nh;
 
   topic_tools::ShapeShifter shape_shifter;
@@ -51,25 +49,30 @@ void publish(int device_num)
   msg.width = 1280;
   msg.encoding = "mono8";
   msg.step = 1280;
+
+  // VDMA declared here so we can prefill the header, vector type is uint8_t
+  size_t image_size = msg.data.size();
+  SerializeToByteArray(msg, buffer);
+  size_t msg_size = buffer.size();
+  VDMADriver vdma(DMA_DEVICES[device_num], device_num, buffer, image_size);
+
   int count = 0;
   ros::Time prev_time = ros::Time::now();
   bool message_full = false;
   while (ros::ok())
   {
-    msg.header.stamp = ros::Time::now();
     // Fill the message
-    void* image_ptr = vdma.getImage();
-    if (message_full == false)
-    {
-      memcpy(&msg.data[0], image_ptr, 1280*266*3);
-      SerializeToByteArray(msg, buffer);
-    }
-    message_full = true;
+    unsigned char* image_ptr = vdma.getImage();
+    msg.header.stamp = ros::Time::now();
+    SerializeToByteArray(msg.header, buffer);
+    vdma.setHeader(buffer);
+    //memcpy(&msg.data[0], image_ptr, 1280*266*3);
+    // message_full = true;
     // Publish
     //ros::serialization::OStream stream(buffer.data(), buffer.size());
     // TODO: OPTIMIZE HERE
     //shape_shifter.read(stream);
-    shape_shifter.assign_data(buffer.data(), buffer.size());
+    shape_shifter.assign_data(image_ptr, msg_size);
     pub.publish(shape_shifter);
     //pub.publish(msg);
     ros::Time cur_time = ros::Time::now();
@@ -117,12 +120,14 @@ int main(int argc, char **argv)
   ros::Time prev_time = ros::Time::now();
   */
   std::thread t0(publish,0);
+  
   std::thread t1(publish,1);
   std::thread t2(publish,2);
   std::thread t3(publish,3);
   std::thread t4(publish,4);
   std::thread t5(publish,5);
   std::thread t6(publish,6);
+  
   t0.join();
   /*
   while (ros::ok())
