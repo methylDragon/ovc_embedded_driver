@@ -40,6 +40,7 @@ class VDMADriver
   unsigned int readRegister(int reg_addr) const;
 
   int frame_offset;
+  int misalignment_offset; 
 
   int last_fb;
 
