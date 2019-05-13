@@ -3,6 +3,7 @@
 #include <iostream>
 #include <vector>
 #include <sys/ioctl.h>
+#include <boost/program_options.hpp>
 extern "C"
 {
   #include <linux/i2c.h>
@@ -10,6 +11,8 @@ extern "C"
   #include <i2c/smbus.h>
 }
 #include <ovc_embedded_driver/i2c_driver.h>
+
+namespace po = boost::program_options;
 
 I2CDriver::I2CDriver(int i2c_num)
 {
@@ -21,34 +24,182 @@ I2CDriver::I2CDriver(int i2c_num)
   // Set the slave address for the device
   if (ioctl(i2c_fd, I2C_SLAVE, CAMERA_ADDRESS) < 0)
     std::cout << "Couldn't set slave address" << std::endl;
+  initRegMap();
+  configurePLL(EXTCLK_FREQ, VCO_FREQ, PIXEL_RES);
+  configureGPIO();
+  configureMIPI();
+  enableTestMode();
+  std::cout << "I2C Initialization done" << std::endl;
 }
 
-void I2CDriver::writeRegAddr(uint16_t reg_addr)
+void I2CDriver::programFromFile()
 {
-  // Need to put the 8 MSB in the command byte to simulate 2 byte address
-  uint8_t reg_msb = reg_addr >> 8;
-  uint8_t reg_lsb = reg_addr & 0xFF;
-  // TODO error recovery
-  i2c_smbus_write_byte_data(i2c_fd, reg_msb, reg_lsb);
+  /*
+  po::options_description desc("Allowed options");
+  std::ifstream ifs("/home/luca/60fps_config", std::ifstream::in); 
+  */
+
 }
 
-int16_t I2CDriver::readRegister(uint16_t reg_addr, int reg_size)
+void I2CDriver::initRegMap()
 {
-  writeRegAddr(reg_addr);
+  // Append to the hash map all the registers we need
+  reg_map.insert(std::make_pair<std::string, I2CRegister>("RESET_REGISTER", I2CRegister(RESET_REGISTER, 2)));
+  reg_map.insert(std::make_pair<std::string, I2CRegister>("VT_PIX_CLK_DIV", I2CRegister(VT_PIX_CLK_DIV, 2)));
+  reg_map.insert(std::make_pair<std::string, I2CRegister>("VT_SYS_CLK_DIV", I2CRegister(VT_SYS_CLK_DIV, 2)));
+  reg_map.insert(std::make_pair<std::string, I2CRegister>("PRE_PLL_CLK_DIV", I2CRegister(PRE_PLL_CLK_DIV, 2)));
+  reg_map.insert(std::make_pair<std::string, I2CRegister>("PLL_MULTIPLIER", I2CRegister(PLL_MULTIPLIER, 2)));
+  reg_map.insert(std::make_pair<std::string, I2CRegister>("OP_PIX_CLK_DIV", I2CRegister(OP_PIX_CLK_DIV, 2)));
+  reg_map.insert(std::make_pair<std::string, I2CRegister>("OP_SYS_CLK_DIV", I2CRegister(OP_SYS_CLK_DIV, 2)));
+  // Image
+  reg_map.insert(std::make_pair<std::string, I2CRegister>("Y_ADDR_START", I2CRegister(Y_ADDR_START, 2)));
+  reg_map.insert(std::make_pair<std::string, I2CRegister>("X_ADDR_START", I2CRegister(X_ADDR_START, 2)));
+  reg_map.insert(std::make_pair<std::string, I2CRegister>("Y_ADDR_END", I2CRegister(Y_ADDR_END, 2)));
+  reg_map.insert(std::make_pair<std::string, I2CRegister>("X_ADDR_END", I2CRegister(X_ADDR_END, 2)));
+  reg_map.insert(std::make_pair<std::string, I2CRegister>("X_ODD_INC", I2CRegister(X_ODD_INC, 2)));
+  reg_map.insert(std::make_pair<std::string, I2CRegister>("Y_ODD_INC", I2CRegister(Y_ODD_INC, 2)));
+  reg_map.insert(std::make_pair<std::string, I2CRegister>("FRAME_LENGTH_LINES", I2CRegister(FRAME_LENGTH_LINES, 2)));
+  reg_map.insert(std::make_pair<std::string, I2CRegister>("LINE_LENGTH_PCK", I2CRegister(LINE_LENGTH_PCK, 2)));
+  reg_map.insert(std::make_pair<std::string, I2CRegister>("OPERATION_MODE_CTRL", I2CRegister(OPERATION_MODE_CTRL, 2)));
+  reg_map.insert(std::make_pair<std::string, I2CRegister>("COARSE_INTEGRATION_TIME", I2CRegister(COARSE_INTEGRATION_TIME, 2)));
+  reg_map.insert(std::make_pair<std::string, I2CRegister>("AECTRLREG", I2CRegister(AECTRLREG, 2)));
+  reg_map.insert(std::make_pair<std::string, I2CRegister>("AE_LUMA_TARGET_REG", I2CRegister(AE_LUMA_TARGET_REG, 2)));
+  reg_map.insert(std::make_pair<std::string, I2CRegister>("SMIA_TEST", I2CRegister(SMIA_TEST, 2)));
+  // MIPI
+  reg_map.insert(std::make_pair<std::string, I2CRegister>("FRAME_PREAMBLE", I2CRegister(FRAME_PREAMBLE, 2)));
+  reg_map.insert(std::make_pair<std::string, I2CRegister>("LINE_PREAMBLE", I2CRegister(LINE_PREAMBLE, 2)));
+  reg_map.insert(std::make_pair<std::string, I2CRegister>("MIPI_TIMING_0", I2CRegister(MIPI_TIMING_0, 2)));
+  reg_map.insert(std::make_pair<std::string, I2CRegister>("MIPI_TIMING_1", I2CRegister(MIPI_TIMING_1, 2)));
+  reg_map.insert(std::make_pair<std::string, I2CRegister>("MIPI_TIMING_2", I2CRegister(MIPI_TIMING_2, 2)));
+  reg_map.insert(std::make_pair<std::string, I2CRegister>("MIPI_TIMING_3", I2CRegister(MIPI_TIMING_3, 2)));
+  reg_map.insert(std::make_pair<std::string, I2CRegister>("MIPI_TIMING_4", I2CRegister(MIPI_TIMING_4, 2)));
+  reg_map.insert(std::make_pair<std::string, I2CRegister>("SERIAL_FORMAT", I2CRegister(SERIAL_FORMAT, 2)));
+  reg_map.insert(std::make_pair<std::string, I2CRegister>("SERIAL_TEST", I2CRegister(SERIAL_TEST, 2)));
+  reg_map.insert(std::make_pair<std::string, I2CRegister>("DATA_FORMAT_BITS", I2CRegister(DATA_FORMAT_BITS, 2)));
+  reg_map.insert(std::make_pair<std::string, I2CRegister>("DATAPATH_SELECT", I2CRegister(DATAPATH_SELECT, 2)));
+  reg_map.insert(std::make_pair<std::string, I2CRegister>("READ_MODE", I2CRegister(READ_MODE, 2)));
+  reg_map.insert(std::make_pair<std::string, I2CRegister>("COMPANDING", I2CRegister(COMPANDING, 2)));
+  // Testing
+  reg_map.insert(std::make_pair<std::string, I2CRegister>("TEST_PATTERN_MODE", I2CRegister(TEST_PATTERN_MODE, 2)));
+  reg_map.insert(std::make_pair<std::string, I2CRegister>("TEST_DATA_RED", I2CRegister(TEST_DATA_RED, 2)));
+  reg_map.insert(std::make_pair<std::string, I2CRegister>("TEST_DATA_GREENR", I2CRegister(TEST_DATA_GREENR, 2)));
+  reg_map.insert(std::make_pair<std::string, I2CRegister>("TEST_DATA_BLUE", I2CRegister(TEST_DATA_BLUE, 2)));
+  reg_map.insert(std::make_pair<std::string, I2CRegister>("TEST_DATA_GREENB", I2CRegister(TEST_DATA_GREENB, 2)));
+  reg_map.insert(std::make_pair<std::string, I2CRegister>("GPI_STATUS", I2CRegister(GPI_STATUS, 2)));
+  reg_map.insert(std::make_pair<std::string, I2CRegister>("FRAME_STATUS", I2CRegister(FRAME_STATUS, 2)));
+  reg_map.insert(std::make_pair<std::string, I2CRegister>("LED_FLASH_CONTROL", I2CRegister(LED_FLASH_CONTROL, 2)));
+}
+
+int16_t I2CDriver::readRegister(const std::string& reg_name)
+{
+  I2CRegister reg(reg_map.at(reg_name));
+  i2c_smbus_write_byte_data(i2c_fd, reg.addr >> 8, reg.addr & 0xFF);
   int16_t ret_val = 0;
   // Data is returned MSB first
-  for (int i=reg_size-1; i>=0; --i)
+  for (int i=reg.size-1; i>=0; --i)
     ret_val |= i2c_smbus_read_byte(i2c_fd) << (i*8); 
-  std::cout << ret_val << std::endl;
   return ret_val;
 }
 
-void I2CDriver::writeRegister(uint16_t reg_addr, int val, int reg_size)
+void I2CDriver::writeRegister(const std::string& reg_name, int val)
 {
-  //writeRegAddr(reg_addr); 
-  std::vector<uint8_t> payload(reg_size + 1); // We need to add one byte for address
-  payload[0] = reg_addr & 0xFF;
-  for (int i=1; i<=reg_size; ++i)
-    payload[i] = val >> (8 * (reg_size - i));
-  i2c_smbus_write_i2c_block_data(i2c_fd, reg_addr >> 8, payload.size(), &payload[0]); 
+  I2CRegister reg(reg_map.at(reg_name));
+  std::vector<uint8_t> payload(reg.size + 1); // We need to add one byte for address
+  payload[0] = reg.addr & 0xFF;
+  for (int i=1; i<=reg.size; ++i)
+    payload[i] = val >> (8 * (reg.size - i));
+  i2c_smbus_write_i2c_block_data(i2c_fd, reg.addr >> 8, payload.size(), &payload[0]); 
+}
+
+void I2CDriver::configurePLL(int input_freq, int target_freq, int pixel_res)
+{
+  //int pll_mult = 2 * target_freq / input_freq; 
+  //std::cout << "PLL mult = " << pll_mult << std::endl;
+  // Assuming the multiplier can be high enough and will not overflow (max 255?)
+  // TODO documentation ambiguous on the clocks, check...
+  writeRegister("PLL_MULTIPLIER", 32);
+  // We will not divide the input clock
+  writeRegister("PRE_PLL_CLK_DIV", 1);
+  // Pixel resolution defines number of clocks per pixel
+  writeRegister("VT_PIX_CLK_DIV", 4); // DDR?
+  // 1 in documentation
+  writeRegister("VT_SYS_CLK_DIV", 4);
+  // OP registers have same values
+  writeRegister("OP_PIX_CLK_DIV", 8);
+  writeRegister("OP_SYS_CLK_DIV", 2);
+}
+
+void I2CDriver::configureGPIO()
+{
+  // Enable input buffers
+  int16_t reg_val = readRegister("RESET_REGISTER");
+  reg_val |= 1 << 8;
+  //reg_val |= 1 << 11; // Force PLL ON (likely unnecessary)
+  writeRegister("RESET_REGISTER", reg_val);
+  // Enable flash output for debugging purposes
+  writeRegister("LED_FLASH_CONTROL", 1 << 8);
+}
+void I2CDriver::configureMIPI()
+{
+  // Start with image config
+  writeRegister("Y_ADDR_START", 0);
+  writeRegister("X_ADDR_START", 4);
+  writeRegister("Y_ADDR_END", 799);
+  writeRegister("X_ADDR_END", 1283);
+  writeRegister("X_ODD_INC", 1);
+  writeRegister("Y_ODD_INC", 1);
+  writeRegister("OPERATION_MODE_CTRL", 3);
+  writeRegister("READ_MODE", 0);
+  writeRegister("FRAME_LENGTH_LINES", 891);
+  writeRegister("LINE_LENGTH_PCK", 1488);
+  writeRegister("COARSE_INTEGRATION_TIME", 890);
+  uint16_t ae_val = 3;
+  // Increase gain
+  //ae_val |= 1 << 6;
+  // Enable embedded data
+  //writeRegister("SMIA_TEST", 0x1982); // Enables all
+  writeRegister("SMIA_TEST", 0x1982); // Enable only one
+  writeRegister("AECTRLREG", ae_val);
+  writeRegister("AE_LUMA_TARGET_REG", 0x8000);
+  // Serializer enabled by default, (reset register bit 12), TODO assert?
+  // Change to single lane
+  writeRegister("SERIAL_FORMAT", 0x0201);
+  writeRegister("COMPANDING", 0);
+  // 10 bit output, check precompression?
+  writeRegister("DATA_FORMAT_BITS", 0x0808);
+  writeRegister("DATAPATH_SELECT", 0x9010);
+  writeRegister("FRAME_PREAMBLE", 69);
+  writeRegister("LINE_PREAMBLE", 49);
+  writeRegister("MIPI_TIMING_0", 5989);
+  writeRegister("MIPI_TIMING_1", 4366);
+  writeRegister("MIPI_TIMING_2", 12361);
+  writeRegister("MIPI_TIMING_3", 261);
+  writeRegister("MIPI_TIMING_4", 4);
+  // Test for MIPI
+  uint16_t test_val = 0;
+  /* 
+  test_val |= 1 << 8; // Lane 0
+  test_val |= 1; // Enable test, even column select
+  test_val |= 6 << 4; // low speed square wave
+  */
+  writeRegister("SERIAL_TEST", test_val);
+}
+
+void I2CDriver::enableTestMode()
+{
+  // Set test pattern mode, 1 = solid color 2 = bars 3 = fade to gray 256 = walking 1
+  writeRegister("TEST_DATA_RED", 0x1111);
+  writeRegister("TEST_DATA_GREENR", 0x2222);
+  writeRegister("TEST_DATA_BLUE", 0x3333);
+  writeRegister("TEST_DATA_GREENB", 0x4444);
+  writeRegister("TEST_PATTERN_MODE", 0);
+  // Set sensor to streaming mode (enables it)
+  int16_t reg_val = readRegister("RESET_REGISTER");
+  //reg_val |= 1 << 2;
+  //writeRegister("RESET_REGISTER", reg_val);
+  std::cout << "Reset reg = " << std::hex << readRegister("RESET_REGISTER") << std::endl;
+
+  std::cout << "GPI reg = " << std::hex << readRegister("GPI_STATUS") << std::endl;
+  std::cout << "FRAME reg = " << std::hex << readRegister("FRAME_STATUS") << std::endl;
+  std::cout << "SERIAL_TEST reg = " << std::hex << readRegister("SERIAL_TEST") << std::endl;
 }

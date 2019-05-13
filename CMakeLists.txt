@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 2.8.3)
 project(ovc_embedded_driver)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
-add_compile_options(-std=c++14)
+add_compile_options(-std=c++14 -fsanitize=address)
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
@@ -119,6 +119,7 @@ include_directories(
 ## Declare a C++ library
 add_library(${PROJECT_NAME}
   src/vdma_driver.cpp
+  src/i2c_driver.cpp
 )
 
 ## Add cmake target dependencies of the library
@@ -145,6 +146,8 @@ add_dependencies(${PROJECT_NAME}_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catk
 target_link_libraries(${PROJECT_NAME}_node
   ${catkin_LIBRARIES}
   ${PROJECT_NAME}
+  i2c
+  -fsanitize=address
 )
 
 #############

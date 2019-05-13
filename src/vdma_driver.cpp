@@ -138,5 +138,7 @@ unsigned char* VDMADriver::getImage()
   last_fb = (*(uio_mmap + PARK_PTR_REG) >> 24) & 0b11111;
   last_fb -= 1;
   if (last_fb < 0) last_fb = NUM_FRAMEBUFFERS - 1;
+  std::cout << "Got frame" << std::endl;
+  //return memory_mmap[last_fb] + frame_offset;
   return memory_mmap[last_fb] + misalignment_offset;
 }
