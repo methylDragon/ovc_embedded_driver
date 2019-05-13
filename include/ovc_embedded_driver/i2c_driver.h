@@ -51,6 +51,8 @@ class I2CDriver
 
   static constexpr uint16_t AECTRLREG = 0x3100;
   static constexpr uint16_t AE_LUMA_TARGET_REG = 0x3102;
+  static constexpr uint16_t AE_MAX_EXPOSURE_REG = 0x311C;
+  static constexpr uint16_t AE_COARSE_INTEGRATION_TIME = 0x3164;
 
   static constexpr uint16_t DATA_FORMAT_BITS = 0x31AC;
   static constexpr uint16_t SERIAL_FORMAT = 0x31AE;
@@ -85,6 +87,8 @@ class I2CDriver
 
 public:
   I2CDriver(int i2c_num);
+
+  int16_t getIntegrationTime();
 
 
 };

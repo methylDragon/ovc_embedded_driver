@@ -64,6 +64,8 @@ void I2CDriver::initRegMap()
   reg_map.insert(std::make_pair<std::string, I2CRegister>("COARSE_INTEGRATION_TIME", I2CRegister(COARSE_INTEGRATION_TIME, 2)));
   reg_map.insert(std::make_pair<std::string, I2CRegister>("AECTRLREG", I2CRegister(AECTRLREG, 2)));
   reg_map.insert(std::make_pair<std::string, I2CRegister>("AE_LUMA_TARGET_REG", I2CRegister(AE_LUMA_TARGET_REG, 2)));
+  reg_map.insert(std::make_pair<std::string, I2CRegister>("AE_COARSE_INTEGRATION_TIME", I2CRegister(AE_COARSE_INTEGRATION_TIME, 2)));
+  reg_map.insert(std::make_pair<std::string, I2CRegister>("AE_MAX_EXPOSURE_REG", I2CRegister(AE_MAX_EXPOSURE_REG, 2)));
   reg_map.insert(std::make_pair<std::string, I2CRegister>("SMIA_TEST", I2CRegister(SMIA_TEST, 2)));
   // MIPI
   reg_map.insert(std::make_pair<std::string, I2CRegister>("FRAME_PREAMBLE", I2CRegister(FRAME_PREAMBLE, 2)));
@@ -155,12 +157,13 @@ void I2CDriver::configureMIPI()
   writeRegister("COARSE_INTEGRATION_TIME", 890);
   uint16_t ae_val = 3;
   // Increase gain
-  //ae_val |= 1 << 6;
+  ae_val |= 1 << 6;
   // Enable embedded data
   //writeRegister("SMIA_TEST", 0x1982); // Enables all
   writeRegister("SMIA_TEST", 0x1982); // Enable only one
   writeRegister("AECTRLREG", ae_val);
-  writeRegister("AE_LUMA_TARGET_REG", 0x8000);
+  writeRegister("AE_LUMA_TARGET_REG", 0x5000);
+  writeRegister("AE_MAX_EXPOSURE_REG", 0x0023); // Originally 0x02A0 
   // Serializer enabled by default, (reset register bit 12), TODO assert?
   // Change to single lane
   writeRegister("SERIAL_FORMAT", 0x0201);
@@ -202,4 +205,9 @@ void I2CDriver::enableTestMode()
   std::cout << "GPI reg = " << std::hex << readRegister("GPI_STATUS") << std::endl;
   std::cout << "FRAME reg = " << std::hex << readRegister("FRAME_STATUS") << std::endl;
   std::cout << "SERIAL_TEST reg = " << std::hex << readRegister("SERIAL_TEST") << std::endl;
+}
+
+int16_t I2CDriver::getIntegrationTime() 
+{
+  return readRegister("AE_COARSE_INTEGRATION_TIME");
 }
