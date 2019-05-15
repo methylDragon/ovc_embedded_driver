@@ -28,7 +28,7 @@ I2CDriver::I2CDriver(int i2c_num)
   configurePLL(EXTCLK_FREQ, VCO_FREQ, PIXEL_RES);
   configureGPIO();
   configureMIPI();
-  enableTestMode();
+  //enableTestMode();
   std::cout << "I2C Initialization done" << std::endl;
 }
 
@@ -66,6 +66,14 @@ void I2CDriver::initRegMap()
   reg_map.insert(std::make_pair<std::string, I2CRegister>("AE_LUMA_TARGET_REG", I2CRegister(AE_LUMA_TARGET_REG, 2)));
   reg_map.insert(std::make_pair<std::string, I2CRegister>("AE_COARSE_INTEGRATION_TIME", I2CRegister(AE_COARSE_INTEGRATION_TIME, 2)));
   reg_map.insert(std::make_pair<std::string, I2CRegister>("AE_MAX_EXPOSURE_REG", I2CRegister(AE_MAX_EXPOSURE_REG, 2)));
+  reg_map.insert(std::make_pair<std::string, I2CRegister>("AE_DAMP_MAX_REG", I2CRegister(AE_DAMP_MAX_REG, 2)));
+  reg_map.insert(std::make_pair<std::string, I2CRegister>("AE_EG_EXPOSURE_HI", I2CRegister(AE_EG_EXPOSURE_HI, 2)));
+  reg_map.insert(std::make_pair<std::string, I2CRegister>("AE_EG_EXPOSURE_LO", I2CRegister(AE_EG_EXPOSURE_LO, 2)));
+  reg_map.insert(std::make_pair<std::string, I2CRegister>("COLAMP_BYPASS", I2CRegister(COLAMP_BYPASS, 2)));
+  reg_map.insert(std::make_pair<std::string, I2CRegister>("ADC_GAIN_MSB", I2CRegister(ADC_GAIN_MSB, 2)));
+  reg_map.insert(std::make_pair<std::string, I2CRegister>("ADC_GAIN_LSB", I2CRegister(ADC_GAIN_LSB, 2)));
+  reg_map.insert(std::make_pair<std::string, I2CRegister>("COLAMP_GAIN", I2CRegister(COLAMP_GAIN, 2)));
+  reg_map.insert(std::make_pair<std::string, I2CRegister>("CURRENT_GAINS", I2CRegister(CURRENT_GAINS, 2)));
   reg_map.insert(std::make_pair<std::string, I2CRegister>("SMIA_TEST", I2CRegister(SMIA_TEST, 2)));
   // MIPI
   reg_map.insert(std::make_pair<std::string, I2CRegister>("FRAME_PREAMBLE", I2CRegister(FRAME_PREAMBLE, 2)));
@@ -78,6 +86,7 @@ void I2CDriver::initRegMap()
   reg_map.insert(std::make_pair<std::string, I2CRegister>("SERIAL_FORMAT", I2CRegister(SERIAL_FORMAT, 2)));
   reg_map.insert(std::make_pair<std::string, I2CRegister>("SERIAL_TEST", I2CRegister(SERIAL_TEST, 2)));
   reg_map.insert(std::make_pair<std::string, I2CRegister>("DATA_FORMAT_BITS", I2CRegister(DATA_FORMAT_BITS, 2)));
+  reg_map.insert(std::make_pair<std::string, I2CRegister>("ANALOG_GAIN", I2CRegister(ANALOG_GAIN, 2)));
   reg_map.insert(std::make_pair<std::string, I2CRegister>("DATAPATH_SELECT", I2CRegister(DATAPATH_SELECT, 2)));
   reg_map.insert(std::make_pair<std::string, I2CRegister>("READ_MODE", I2CRegister(READ_MODE, 2)));
   reg_map.insert(std::make_pair<std::string, I2CRegister>("COMPANDING", I2CRegister(COMPANDING, 2)));
@@ -119,16 +128,16 @@ void I2CDriver::configurePLL(int input_freq, int target_freq, int pixel_res)
   //std::cout << "PLL mult = " << pll_mult << std::endl;
   // Assuming the multiplier can be high enough and will not overflow (max 255?)
   // TODO documentation ambiguous on the clocks, check...
-  writeRegister("PLL_MULTIPLIER", 32);
+  writeRegister("PLL_MULTIPLIER", 144);
   // We will not divide the input clock
-  writeRegister("PRE_PLL_CLK_DIV", 1);
+  writeRegister("PRE_PLL_CLK_DIV", 5);
   // Pixel resolution defines number of clocks per pixel
   writeRegister("VT_PIX_CLK_DIV", 4); // DDR?
   // 1 in documentation
-  writeRegister("VT_SYS_CLK_DIV", 4);
+  writeRegister("VT_SYS_CLK_DIV", 2);
   // OP registers have same values
   writeRegister("OP_PIX_CLK_DIV", 8);
-  writeRegister("OP_SYS_CLK_DIV", 2);
+  writeRegister("OP_SYS_CLK_DIV", 1);
 }
 
 void I2CDriver::configureGPIO()
@@ -152,18 +161,36 @@ void I2CDriver::configureMIPI()
   writeRegister("Y_ODD_INC", 1);
   writeRegister("OPERATION_MODE_CTRL", 3);
   writeRegister("READ_MODE", 0);
-  writeRegister("FRAME_LENGTH_LINES", 891);
+  writeRegister("FRAME_LENGTH_LINES", 874);
   writeRegister("LINE_LENGTH_PCK", 1488);
-  writeRegister("COARSE_INTEGRATION_TIME", 890);
+  writeRegister("COARSE_INTEGRATION_TIME", 873);
+  //writeRegister("ANALOG_GAIN", 0x000E); // Set coarse gain to 4x
   uint16_t ae_val = 3;
   // Increase gain
-  ae_val |= 1 << 6;
+  //ae_val |= 1 << 5;
   // Enable embedded data
-  //writeRegister("SMIA_TEST", 0x1982); // Enables all
-  writeRegister("SMIA_TEST", 0x1982); // Enable only one
+  writeRegister("SMIA_TEST", 0x1982); // Enables all
   writeRegister("AECTRLREG", ae_val);
-  writeRegister("AE_LUMA_TARGET_REG", 0x5000);
-  writeRegister("AE_MAX_EXPOSURE_REG", 0x0023); // Originally 0x02A0 
+  writeRegister("AE_LUMA_TARGET_REG", 0xA000);
+  writeRegister("AE_MAX_EXPOSURE_REG", 873/2); // Originally 0x02A0 
+  writeRegister("AE_DAMP_MAX_REG", 0x0110);
+  writeRegister("AE_EG_EXPOSURE_HI", 873/2 - 10); 
+  writeRegister("AE_EG_EXPOSURE_LO", 100); 
+  // Set maximum analog gain to 16
+  int16_t reg_val = readRegister("COLAMP_BYPASS");
+  reg_val &= 0x00FF;
+  reg_val |= 0x0300;
+  writeRegister("COLAMP_BYPASS", reg_val); 
+  reg_val = readRegister("ADC_GAIN_MSB");
+  reg_val &= 0x00FF;
+  reg_val |= 0xAA00;
+  writeRegister("ADC_GAIN_MSB", reg_val); 
+  reg_val = readRegister("ADC_GAIN_LSB");
+  reg_val &= 0xFF00;
+  reg_val |= 0x0044;
+  writeRegister("ADC_GAIN_LSB", reg_val); 
+  writeRegister("COLAMP_GAIN", 0xA4AA); 
+
   // Serializer enabled by default, (reset register bit 12), TODO assert?
   // Change to single lane
   writeRegister("SERIAL_FORMAT", 0x0201);
@@ -171,13 +198,13 @@ void I2CDriver::configureMIPI()
   // 10 bit output, check precompression?
   writeRegister("DATA_FORMAT_BITS", 0x0808);
   writeRegister("DATAPATH_SELECT", 0x9010);
-  writeRegister("FRAME_PREAMBLE", 69);
-  writeRegister("LINE_PREAMBLE", 49);
-  writeRegister("MIPI_TIMING_0", 5989);
-  writeRegister("MIPI_TIMING_1", 4366);
-  writeRegister("MIPI_TIMING_2", 12361);
-  writeRegister("MIPI_TIMING_3", 261);
-  writeRegister("MIPI_TIMING_4", 4);
+  writeRegister("FRAME_PREAMBLE", 99);
+  writeRegister("LINE_PREAMBLE", 67);
+  writeRegister("MIPI_TIMING_0", 7047);
+  writeRegister("MIPI_TIMING_1", 8727);
+  writeRegister("MIPI_TIMING_2", 16459);
+  writeRegister("MIPI_TIMING_3", 521);
+  writeRegister("MIPI_TIMING_4", 8);
   // Test for MIPI
   uint16_t test_val = 0;
   /* 
@@ -186,6 +213,11 @@ void I2CDriver::configureMIPI()
   test_val |= 6 << 4; // low speed square wave
   */
   writeRegister("SERIAL_TEST", test_val);
+  // Set sensor to streaming mode (enables it)
+  //int16_t reg_val = readRegister("RESET_REGISTER");
+  //reg_val |= 1 << 2;
+  //reg_val &= ~(1 << 2); // Remove master mode
+  //writeRegister("RESET_REGISTER", reg_val);
 }
 
 void I2CDriver::enableTestMode()
@@ -195,11 +227,7 @@ void I2CDriver::enableTestMode()
   writeRegister("TEST_DATA_GREENR", 0x2222);
   writeRegister("TEST_DATA_BLUE", 0x3333);
   writeRegister("TEST_DATA_GREENB", 0x4444);
-  writeRegister("TEST_PATTERN_MODE", 0);
-  // Set sensor to streaming mode (enables it)
-  int16_t reg_val = readRegister("RESET_REGISTER");
-  //reg_val |= 1 << 2;
-  //writeRegister("RESET_REGISTER", reg_val);
+  writeRegister("TEST_PATTERN_MODE", 1);
   std::cout << "Reset reg = " << std::hex << readRegister("RESET_REGISTER") << std::endl;
 
   std::cout << "GPI reg = " << std::hex << readRegister("GPI_STATUS") << std::endl;
@@ -210,4 +238,22 @@ void I2CDriver::enableTestMode()
 int16_t I2CDriver::getIntegrationTime() 
 {
   return readRegister("AE_COARSE_INTEGRATION_TIME");
+}
+
+void I2CDriver::changeTestColor()
+{
+  static int color=0;
+  int red = color == 0 ? 0xFFFF : 0; 
+  int green = color == 0 ? 0xFFFF : 0; 
+  int blue = color == 0 ? 0xFFFF : 0; 
+  writeRegister("TEST_DATA_RED", red);
+  writeRegister("TEST_DATA_GREENR", green);
+  writeRegister("TEST_DATA_BLUE", blue);
+  writeRegister("TEST_DATA_GREENB", green);
+  color = (color + 1) % 2;
+}
+
+int16_t I2CDriver::getCurrentGains()
+{
+  return readRegister("CURRENT_GAINS") >> 11; 
 }

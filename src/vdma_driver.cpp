@@ -28,8 +28,13 @@ VDMADriver::VDMADriver(int uio_num, int cam_num, const std::vector<uint8_t>& sam
     // Start by opening (or creating) the camera dma files
     std::string memory_filename("cam" + std::to_string(cam_num) + "_" + std::to_string(i));
     int memory_file = open((DMA_FOLDER + memory_filename).c_str(), O_RDWR | O_CREAT);
+    if (memory_file < 0)
+      std::cout << "File open failed" << std::endl;
 
     memory_mmap[i] = (unsigned char*) mmap(NULL, MAP_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_HUGETLB | MAP_POPULATE, memory_file, 0);
+
+    if (memory_mmap[i] == MAP_FAILED)
+      std::cout << "mmap failed" << std::endl;
     // Make sure Linux allocates all the pages
     unsigned char dummy[1024*1024*2];
     memcpy((void *)(memory_mmap[i] + misalignment_offset), dummy, sizeof(dummy) - misalignment_offset);
@@ -138,7 +143,7 @@ unsigned char* VDMADriver::getImage()
   last_fb = (*(uio_mmap + PARK_PTR_REG) >> 24) & 0b11111;
   last_fb -= 1;
   if (last_fb < 0) last_fb = NUM_FRAMEBUFFERS - 1;
-  //std::cout << "Got frame" << std::endl;
+  std::cout << "Got frame" << std::endl;
   //return memory_mmap[last_fb] + frame_offset;
   return memory_mmap[last_fb] + misalignment_offset;
 }

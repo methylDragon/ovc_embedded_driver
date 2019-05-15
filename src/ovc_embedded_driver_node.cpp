@@ -69,22 +69,22 @@ void publish(int device_num)
   SerializeToByteArray(msg, buffer);
   size_t msg_size = buffer.size();
   VDMADriver vdma(DMA_DEVICES[device_num], device_num, buffer, image_size);
+  //i2c.enableTestMode();
 
   ros::Time prev_time = ros::Time::now();
-  //FILE *fp = fopen("/home/ubuntu/raw_frames", "wb");
+  FILE *fp = fopen("/home/ubuntu/raw_frames", "wb");
   bool first = true;
   while (ros::ok())
   {
     // Fill the message
     unsigned char* image_ptr = vdma.getImage();
-    //std::cout << "CAM n." << device_num << " PTR = " << (uint64_t) image_ptr << std::endl;
     if (first)
     {
       first = false;
       continue;
     }
 
-    // std::cout << "Got frame cam n. " << device_num << " Integration time = " << i2c.getIntegrationTime() << std::endl;
+    std::cout << "Got frame cam n. " << device_num << " Integration time = " << i2c.getIntegrationTime() << " Current gains = " << i2c.getCurrentGains() << std::endl;
     //fwrite(image_ptr, 1, 1280*800, fp);
     
     msg.header.stamp = ros::Time::now();
@@ -97,8 +97,9 @@ void publish(int device_num)
     if (interval > 0.05)
       std::cout << "Frame dropped" << std::endl;
     prev_time = cur_time;
-    
+    //i2c.changeTestColor(); 
   }
+  fclose(fp);
 }
 
 int main(int argc, char **argv)
@@ -106,7 +107,7 @@ int main(int argc, char **argv)
   ros::init(argc, argv, "ovc_embedded_driver_node");
   std::unique_ptr<std::thread> threads[NUM_CAMERAS];
   std::unique_ptr<I2CDriver> i2c_devs[NUM_CAMERAS];
-  for (int i=0; i<NUM_CAMERAS; ++i)
+  for (int i=0; i<NUM_CAMERAS-2; ++i)
     threads[i] = std::make_unique<std::thread>(publish,i);
   
   threads[0]->join();

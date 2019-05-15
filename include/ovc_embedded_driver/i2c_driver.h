@@ -22,6 +22,7 @@ class I2CDriver
   static constexpr uint16_t FRAME_LENGTH_LINES = 0x300A;
   static constexpr uint16_t LINE_LENGTH_PCK = 0x300C;
   static constexpr uint16_t COARSE_INTEGRATION_TIME = 0x3012;
+  static constexpr uint16_t ANALOG_GAIN = 0x3060;
   static constexpr uint16_t DATAPATH_SELECT = 0x306E;
   static constexpr uint16_t X_ODD_INC = 0x30A2;
   static constexpr uint16_t Y_ODD_INC = 0x30A6;
@@ -51,8 +52,12 @@ class I2CDriver
 
   static constexpr uint16_t AECTRLREG = 0x3100;
   static constexpr uint16_t AE_LUMA_TARGET_REG = 0x3102;
+  static constexpr uint16_t AE_DAMP_MAX_REG = 0x3110;
   static constexpr uint16_t AE_MAX_EXPOSURE_REG = 0x311C;
   static constexpr uint16_t AE_COARSE_INTEGRATION_TIME = 0x3164;
+  static constexpr uint16_t AE_EG_EXPOSURE_HI = 0x3164;
+  static constexpr uint16_t AE_EG_EXPOSURE_LO = 0x3166;
+  static constexpr uint16_t CURRENT_GAINS = 0x312A;
 
   static constexpr uint16_t DATA_FORMAT_BITS = 0x31AC;
   static constexpr uint16_t SERIAL_FORMAT = 0x31AE;
@@ -69,6 +74,10 @@ class I2CDriver
 
   static constexpr uint16_t LED_FLASH_CONTROL = 0x3270;
 
+  static constexpr uint16_t COLAMP_BYPASS = 0x3ED4;
+  static constexpr uint16_t ADC_GAIN_MSB = 0x3ED2;
+  static constexpr uint16_t ADC_GAIN_LSB = 0x3ED0;
+  static constexpr uint16_t COLAMP_GAIN = 0x3EEE;
   int i2c_fd;
   std::unordered_map<std::string, I2CRegister> reg_map;
 
@@ -81,7 +90,6 @@ class I2CDriver
   void configurePLL(int input_freq, int target_freq, int pixel_res);
   void configureGPIO();
   void configureMIPI();
-  void enableTestMode();
 
   void programFromFile();
 
@@ -89,6 +97,9 @@ public:
   I2CDriver(int i2c_num);
 
   int16_t getIntegrationTime();
+  int16_t getCurrentGains();
+  void enableTestMode();
+  void changeTestColor();
 
 
 };
