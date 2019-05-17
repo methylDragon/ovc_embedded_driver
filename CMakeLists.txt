@@ -120,6 +120,7 @@ include_directories(
 add_library(${PROJECT_NAME}
   src/vdma_driver.cpp
   src/i2c_driver.cpp
+  src/spi_driver.cpp
 )
 
 ## Add cmake target dependencies of the library
