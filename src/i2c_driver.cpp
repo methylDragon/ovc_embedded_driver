@@ -174,7 +174,7 @@ void I2CDriver::configureMIPI()
   writeRegister("AE_LUMA_TARGET_REG", 0xA000);
   writeRegister("AE_MAX_EXPOSURE_REG", 873/2); // Originally 0x02A0 
   writeRegister("AE_DAMP_MAX_REG", 0x0110);
-  writeRegister("AE_EG_EXPOSURE_HI", 873/2 - 10); 
+  writeRegister("AE_EG_EXPOSURE_HI", 873/2 - 100); 
   writeRegister("AE_EG_EXPOSURE_LO", 100); 
   // Set maximum analog gain to 16
   int16_t reg_val = readRegister("COLAMP_BYPASS");

@@ -118,6 +118,7 @@ include_directories(
 
 ## Declare a C++ library
 add_library(${PROJECT_NAME}
+  src/uio_driver.cpp
   src/vdma_driver.cpp
   src/i2c_driver.cpp
   src/spi_driver.cpp

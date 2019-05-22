@@ -8,11 +8,12 @@
 
 #include <ovc_embedded_driver/spi_driver.h>
 
-SPIDriver::SPIDriver() :
-  accel_sens(DEFAULT_ACCEL_SENS), gyro_sens(DEFAULT_GYRO_SENS)
+SPIDriver::SPIDriver(int gpio_uio_num) :
+  accel_sens(DEFAULT_ACCEL_SENS), gyro_sens(DEFAULT_GYRO_SENS), uio(UIODriver(gpio_uio_num, GPIO_UIO_SIZE))
 {
   std::cout << "Hello SPI" << std::endl;
   spi_fd = open("/dev/spidev1.0", O_RDWR);
+
   if (spi_fd < 0)
     std::cout << "Failed in opening spi file" << std::endl;
 
@@ -37,6 +38,14 @@ SPIDriver::SPIDriver() :
   if (who_am_i != CHIP_ID)
     std::cout << "WHO_AM_I communication failed" << std::endl;
 
+  // Configure AXI GPIO
+  // Enable interrupts on channel 0
+  uio.writeRegister(GIER, 1 << 31);
+  uio.writeRegister(IER, 1);
+  // We need to write 3 to ISR register to toggle both (should only be 1?)
+  uio.setResetRegisterMask(ISR, 3);
+  // Configure interrupt on sample ready
+  writeRegister(INT_ENABLE_1, 1);
   /*
   for (int i=0; i<100; ++i)
   {
@@ -72,8 +81,12 @@ void SPIDriver::burstReadRegister(unsigned char addr, int count)
 
 IMUReading SPIDriver::readSensors()
 {
+  // Wait for new data available
+  uio.waitInterrupt();
   // TODO add temperature / compass?
   IMUReading ret;
+  // TODO make high level function for specific uio, maybe inheriting
+  ret.num_sample = uio.readRegister(GPIO_DATA);
   tx_buf[0] = ACCEL_XOUT_H | MASK_READ;
   Transmit(1, 12);
   // Cast to make sure we don't lose the sign
@@ -83,6 +96,7 @@ IMUReading SPIDriver::readSensors()
   ret.g_x = static_cast<int16_t>(rx_buf[6] << 8 | rx_buf[7]) / gyro_sens;
   ret.g_y = static_cast<int16_t>(rx_buf[8] << 8 | rx_buf[9]) / gyro_sens;
   ret.g_z = static_cast<int16_t>(rx_buf[10] << 8 | rx_buf[11]) / gyro_sens;
+  //std::cout << "Got IMU n. " << ret.num_sample << std::endl;
   return ret;
 }
 
