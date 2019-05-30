@@ -6,9 +6,9 @@
 
 #include <sensor_msgs/Image.h>
 #include <sensor_msgs/Imu.h>
-#include <topic_tools/shape_shifter.h>
 #include <ros/message_traits.h>
 
+#include <ovc_embedded_driver/dma_shapeshifter.h>
 #include <ovc_embedded_driver/vdma_driver.h>
 #include <ovc_embedded_driver/i2c_driver.h>
 #include <ovc_embedded_driver/spi_driver.h>
@@ -39,7 +39,7 @@ void publish_image(int device_num)
 {
   ros::NodeHandle nh;
 
-  topic_tools::ShapeShifter shape_shifter;
+  DMAShapeShifter shape_shifter;
   shape_shifter.morph(
                   ros::message_traits::MD5Sum<sensor_msgs::Image>::value(),
                   ros::message_traits::DataType<sensor_msgs::Image>::value(),
