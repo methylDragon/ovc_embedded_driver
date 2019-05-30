@@ -11,8 +11,6 @@ extern "C"
 }
 #include <ovc_embedded_driver/i2c_driver.h>
 
-namespace po = boost::program_options;
-
 I2CDriver::I2CDriver(int i2c_num) :
   exp_high_thresh(DEFAULT_EXP_HIGH_THRESH), exp_low_thresh(DEFAULT_EXP_LOW_THRESH),
   cur_analog_gain(MIN_ANALOG_GAIN)

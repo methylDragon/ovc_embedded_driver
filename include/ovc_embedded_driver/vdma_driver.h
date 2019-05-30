@@ -1,5 +1,6 @@
 #include <string>
 #include <vector>
+#include <ovc_embedded_driver/uio_driver.h>
 
 class VDMADriver
 {
@@ -22,10 +23,10 @@ class VDMADriver
   const size_t SIZEY = 800;
   const size_t STRIDE = SIZEX;
   const size_t IMAGE_SIZE = SIZEX * SIZEY;
-  const size_t UIO_MAP_SIZE = 0x1000;
+  const size_t UIO_SIZE = 0x1000;
   // UIO is for AXI4 lite configuration, memory is to access DDR and images
-  int uio_file;
-  unsigned int *uio_mmap;
+  UIODriver uio;
+
   unsigned char *memory_mmap[NUM_FRAMEBUFFERS];
   
   void configureVDMA();

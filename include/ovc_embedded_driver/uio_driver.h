@@ -1,5 +1,5 @@
-
-
+#ifndef UIO_DRIVER_INCLUDE_H
+#define UIO_DRIVER_INCLUDE_H
 
 class UIODriver
 {
@@ -19,3 +19,4 @@ public:
 
   void waitInterrupt();
 };
+#endif

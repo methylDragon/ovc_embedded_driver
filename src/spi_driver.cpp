@@ -11,7 +11,6 @@
 SPIDriver::SPIDriver(int gpio_uio_num) :
   accel_sens(DEFAULT_ACCEL_SENS), gyro_sens(DEFAULT_GYRO_SENS), uio(UIODriver(gpio_uio_num, GPIO_UIO_SIZE))
 {
-  std::cout << "Hello SPI" << std::endl;
   spi_fd = open("/dev/spidev1.0", O_RDWR);
 
   if (spi_fd < 0)
@@ -68,6 +67,7 @@ SPIDriver::SPIDriver(int gpio_uio_num) :
     usleep(100000);
   }
   */
+  std::cout << "IMU Initialization done" << std::endl;
 }
 
 void SPIDriver::selectBank(int bank)

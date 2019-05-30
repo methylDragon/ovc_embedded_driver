@@ -11,12 +11,8 @@
 
 
 
-VDMADriver::VDMADriver(int uio_num, int cam_num, const std::vector<uint8_t>& sample_msg, size_t img_size)
+VDMADriver::VDMADriver(int uio_num, int cam_num, const std::vector<uint8_t>& sample_msg, size_t img_size) : uio(UIODriver(uio_num, UIO_SIZE))
 {
-  std::string uio_filename("/dev/uio" + std::to_string(uio_num));
-  uio_file = open(uio_filename.c_str(), O_RDWR);
-  uio_mmap = (unsigned int*) mmap(NULL, UIO_MAP_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, uio_file, 0);
-
   size_t header_size = sample_msg.size() - img_size;
   // We want an aligned word for the DMA, however the header is not word aligned.
   // TODO will still be offset by 1 word if header is actually the correct size, fix.
@@ -91,18 +87,8 @@ void VDMADriver::setFramebuffer(int i, const std::string& memory_filename)
 void VDMADriver::sendFramebuffer(int fb_num, uint32_t address)
 {
   // We need to add the offset to make sure we don't overwrite the header
-  writeRegister(START_ADDR_0 + fb_num, address + frame_offset);
+  uio.writeRegister(START_ADDR_0 + fb_num, address + frame_offset);
 }
-
-void VDMADriver::writeRegister(int reg_addr, int value)
-{
-  *(uio_mmap + reg_addr) = value;
-};
-
-unsigned int VDMADriver::readRegister(int reg_addr) const
-{
-  return *(uio_mmap + reg_addr); 
-};
 
 void VDMADriver::setHeader(const std::vector<uint8_t>& header, int index)
 {
@@ -115,32 +101,30 @@ void VDMADriver::configureVDMA()
 {
   // TODO implement, for now done separately in Python driver (could actually make it a Python service!)
   // Run DMA
-  writeRegister(VDMACR, readRegister(VDMACR) | 1);
+  uio.writeRegister(VDMACR, uio.readRegister(VDMACR) | 1);
   // Enable frame interrupt
-  writeRegister(VDMACR, readRegister(VDMACR) | (1 << 12));
+  uio.writeRegister(VDMACR, uio.readRegister(VDMACR) | (1 << 12));
   // TODO check genlock
   // Write stride
-  writeRegister(FRMDLY_STRIDE_REG, readRegister(FRMDLY_STRIDE_REG) | STRIDE);
+  uio.writeRegister(FRMDLY_STRIDE_REG, uio.readRegister(FRMDLY_STRIDE_REG) | STRIDE);
   // Horizontal size
-  writeRegister(HSIZE_REG, SIZEX);
-
+  uio.writeRegister(HSIZE_REG, SIZEX);
+  // Set the mask we will use to reset the ISR
+  uio.setResetRegisterMask(VDMASR, uio.readRegister(VDMASR) | (1 << 12));
 }
 
 void VDMADriver::startVDMA()
 {
-  writeRegister(VSIZE_REG, SIZEY);
+  uio.writeRegister(VSIZE_REG, SIZEY);
 }
 // Return pointer to memory area with image
 unsigned char* VDMADriver::getImage()
 {
-  // Return value is ignored, call is blocking until interrupt is generated
-  unsigned int dummy;
-  writeRegister(VDMASR, readRegister(VDMASR) | (1 << 12));
-  write(uio_file, (char *)&IRQ_RST, sizeof(IRQ_RST));
-  unsigned int nb = read(uio_file, &dummy, sizeof(dummy));
+  // Wait until a new frame is generated
+  uio.waitInterrupt();
 
   // TODO parametrize below
-  last_fb = (*(uio_mmap + PARK_PTR_REG) >> 24) & 0b11111;
+  last_fb = (uio.readRegister(PARK_PTR_REG) >> 24) & 0b11111;
   last_fb -= 1;
   if (last_fb < 0) last_fb = NUM_FRAMEBUFFERS - 1;
   //std::cout << "Got frame" << std::endl;
