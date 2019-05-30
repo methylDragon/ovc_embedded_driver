@@ -85,8 +85,6 @@ class I2CDriver
 
   void setAnalogGain(uint16_t gain);
 
-  void programFromFile();
-
 public:
   I2CDriver(int i2c_num);
 

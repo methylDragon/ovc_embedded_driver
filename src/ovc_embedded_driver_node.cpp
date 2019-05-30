@@ -69,25 +69,14 @@ void publish(int device_num)
   SerializeToByteArray(msg, buffer);
   size_t msg_size = buffer.size();
   VDMADriver vdma(DMA_DEVICES[device_num], device_num, buffer, image_size);
-  //i2c.enableTestMode();
 
-  ros::Time prev_time = ros::Time::now();
-  FILE *fp = fopen("/home/ubuntu/raw_frames", "wb");
-  bool first = true;
   std::unique_lock<std::mutex> frame_time_mutex(ft_mutex, std::defer_lock);
   while (ros::ok())
   {
     // Fill the message
     unsigned char* image_ptr = vdma.getImage();
-    if (first)
-    {
-      first = false;
-      continue;
-    }
 
-    std::cout << "Got frame cam n. " << device_num << " Integration time = " << i2c.getIntegrationTime() << " Current gains = " << i2c.getCurrentGains() << std::endl;
     i2c.controlAnalogGain();
-    //fwrite(image_ptr, 1, 1280*800, fp);
 
     frame_time_mutex.lock();
     msg.header.stamp = ros::Time::now();
@@ -97,23 +86,15 @@ void publish(int device_num)
     vdma.setHeader(buffer);
     shape_shifter.assign_data(image_ptr, msg_size);
     pub.publish(shape_shifter);
-    ros::Time cur_time = ros::Time::now();
-    float interval = (cur_time - prev_time).toSec();
-    if (interval > 0.05)
-      std::cout << "Frame dropped" << std::endl;
-    prev_time = cur_time;
-    //i2c.changeTestColor(); 
   }
-  fclose(fp);
 }
 
 void publish_imu()
 {
   SPIDriver spi(IMU_SYNC_GPIO);
   ros::NodeHandle nh;
-  int count = 0;
   std::unique_lock<std::mutex> frame_time_mutex(ft_mutex, std::defer_lock);
-  ros::Publisher imu_pub = nh.advertise<sensor_msgs::Imu>("/ovc/imu", 37); // 1 frame
+  ros::Publisher imu_pub = nh.advertise<sensor_msgs::Imu>("/ovc/imu", 10);
   sensor_msgs::Imu imu_msg;
   while (ros::ok())
   {
@@ -133,13 +114,6 @@ void publish_imu()
       frame_time_mutex.lock();
       frame_time = cur_time;
       frame_time_mutex.unlock();
-    }
-    ++count;
-    if (count == 225)
-    {
-      std::cout << ros::Time::now() << std::endl;
-      std::cout << "1s of imu" << std::endl;
-      count = 0;
     }
     imu_pub.publish(imu_msg);
   }

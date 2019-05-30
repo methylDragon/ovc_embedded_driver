@@ -3,7 +3,6 @@
 #include <iostream>
 #include <vector>
 #include <sys/ioctl.h>
-#include <boost/program_options.hpp>
 extern "C"
 {
   #include <linux/i2c.h>
@@ -31,14 +30,6 @@ I2CDriver::I2CDriver(int i2c_num) :
   configureMIPI();
   //enableTestMode();
   std::cout << "I2C Initialization done" << std::endl;
-}
-
-void I2CDriver::programFromFile()
-{
-  /*
-  po::options_description desc("Allowed options");
-  std::ifstream ifs("/home/luca/60fps_config", std::ifstream::in); 
-  */
 }
 
 int16_t I2CDriver::readRegister(uint16_t reg_addr)
@@ -102,41 +93,21 @@ void I2CDriver::configureMIPI()
   writeRegister(FRAME_LENGTH_LINES, 874);
   writeRegister(LINE_LENGTH_PCK, 1488);
   writeRegister(COARSE_INTEGRATION_TIME, 873);
-  //writeRegister(ANALOG_GAIN, 0x000E); // Set coarse gain to 4x
-  uint16_t ae_val = 3;
-  // Increase gain
-  //ae_val |= 1 << 5;
   // Enable embedded data
   writeRegister(SMIA_TEST, 0x1982); // Enables all
-  writeRegister(AECTRLREG, ae_val);
+  writeRegister(AECTRLREG, 3); // Enable control of exposure and gain (NOTE gain not working)
   writeRegister(AE_LUMA_TARGET_REG, 0x5000);
   writeRegister(AE_MAX_EXPOSURE_REG, 873/2); // Originally 0x02A0 
   writeRegister(AE_DAMP_MAX_REG, 0x0110);
   writeRegister(AE_EG_EXPOSURE_HI, 873/2 - 100); 
   writeRegister(AE_EG_EXPOSURE_LO, 100); 
-  // Set maximum analog gain to 16
-  /*  
-  int16_t reg_val = readRegister(COLAMP_BYPASS);
-  reg_val &= 0x00FF;
-  reg_val |= 0x0300;
-  writeRegister(COLAMP_BYPASS, reg_val); 
-  reg_val = readRegister(ADC_GAIN_MSB);
-  reg_val &= 0x00FF;
-  reg_val |= 0xAA00;
-  writeRegister(ADC_GAIN_MSB, reg_val); 
-  reg_val = readRegister(ADC_GAIN_LSB);
-  reg_val &= 0xFF00;
-  reg_val |= 0x0044;
-  writeRegister(ADC_GAIN_LSB, reg_val); 
-  writeRegister(COLAMP_GAIN, 0xA4AA); 
-  */
-  // Serializer enabled by default, (reset register bit 12), TODO assert?
   // Change to single lane
   writeRegister(SERIAL_FORMAT, 0x0201);
   writeRegister(COMPANDING, 0);
   // 10 bit output, check precompression?
   writeRegister(DATA_FORMAT_BITS, 0x0808);
   writeRegister(DATAPATH_SELECT, 0x9010);
+  // Magic numbers given by the ON semi register wizard software
   writeRegister(FRAME_PREAMBLE, 99);
   writeRegister(LINE_PREAMBLE, 67);
   writeRegister(MIPI_TIMING_0, 7047);
@@ -144,19 +115,6 @@ void I2CDriver::configureMIPI()
   writeRegister(MIPI_TIMING_2, 16459);
   writeRegister(MIPI_TIMING_3, 521);
   writeRegister(MIPI_TIMING_4, 8);
-  // Test for MIPI
-  uint16_t test_val = 0;
-  /* 
-  test_val |= 1 << 8; // Lane 0
-  test_val |= 1; // Enable test, even column select
-  test_val |= 6 << 4; // low speed square wave
-  */
-  writeRegister(SERIAL_TEST, test_val);
-  // Set sensor to streaming mode (enables it)
-  //int16_t reg_val = readRegister(RESET_REGISTER);
-  //reg_val |= 1 << 2;
-  //reg_val &= ~(1 << 2); // Remove master mode
-  //writeRegister(RESET_REGISTER, reg_val);
 }
 
 void I2CDriver::enableTestMode()

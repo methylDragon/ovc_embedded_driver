@@ -18,9 +18,6 @@ class VDMADriver
 
   // Value to write to UIO to reset the interrupt
   const int IRQ_RST = 1;
-  // TODO parametrise bits per pixel
-  //const size_t SIZEX = 1488;
-  //const size_t SIZEY = 891;
   const size_t SIZEX = 1280; // Add rows of embedded data
   const size_t SIZEY = 800;
   const size_t STRIDE = SIZEX;
