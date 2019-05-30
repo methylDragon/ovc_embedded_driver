@@ -34,9 +34,7 @@ class VDMADriver
   void setFramebuffer(int i, const std::string& memory_filename);
   void sendFramebuffer(int fb_num, uint32_t address);
 
-  void writeRegister(int reg_addr, int value);
-
-  unsigned int readRegister(int reg_addr) const;
+  void updateLastFramebuffer();
 
   int frame_offset;
   int misalignment_offset; 

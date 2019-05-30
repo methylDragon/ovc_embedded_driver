@@ -9,8 +9,6 @@
 #include <fstream>
 #include <iostream>
 
-
-
 VDMADriver::VDMADriver(int uio_num, int cam_num, const std::vector<uint8_t>& sample_msg, size_t img_size) : uio(UIODriver(uio_num, UIO_SIZE))
 {
   size_t header_size = sample_msg.size() - img_size;
@@ -99,12 +97,10 @@ void VDMADriver::setHeader(const std::vector<uint8_t>& header, int index)
 
 void VDMADriver::configureVDMA()
 {
-  // TODO implement, for now done separately in Python driver (could actually make it a Python service!)
   // Run DMA
   uio.writeRegister(VDMACR, uio.readRegister(VDMACR) | 1);
   // Enable frame interrupt
   uio.writeRegister(VDMACR, uio.readRegister(VDMACR) | (1 << 12));
-  // TODO check genlock
   // Write stride
   uio.writeRegister(FRMDLY_STRIDE_REG, uio.readRegister(FRMDLY_STRIDE_REG) | STRIDE);
   // Horizontal size
@@ -117,16 +113,21 @@ void VDMADriver::startVDMA()
 {
   uio.writeRegister(VSIZE_REG, SIZEY);
 }
+
+void VDMADriver::updateLastFramebuffer()
+{
+  // TODO check if we can avoid having last_fb global
+  last_fb = (uio.readRegister(PARK_PTR_REG) >> 24) & 0b11111;
+  last_fb -= 1;
+  if (last_fb < 0) last_fb = NUM_FRAMEBUFFERS - 1;
+}
+
 // Return pointer to memory area with image
 unsigned char* VDMADriver::getImage()
 {
   // Wait until a new frame is generated
   uio.waitInterrupt();
+  updateLastFramebuffer();
 
-  // TODO parametrize below
-  last_fb = (uio.readRegister(PARK_PTR_REG) >> 24) & 0b11111;
-  last_fb -= 1;
-  if (last_fb < 0) last_fb = NUM_FRAMEBUFFERS - 1;
-  //std::cout << "Got frame" << std::endl;
   return memory_mmap[last_fb] + misalignment_offset;
 }

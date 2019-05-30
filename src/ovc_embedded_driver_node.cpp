@@ -15,7 +15,6 @@
 
 #define NUM_CAMERAS 3
 
-//const int DMA_DEVICES[NUM_CAMERAS] = {1}; // From hardware
 const int DMA_DEVICES[NUM_CAMERAS] = {2,3,4}; // From hardware
 const int I2C_DEVICES[NUM_CAMERAS] = {0,1,2}; // Files in /dev/i2c-, must match DMA
 
@@ -36,7 +35,7 @@ void SerializeToByteArray(const T& msg, std::vector<uint8_t>& destination_buffer
   ros::serialization::serialize(stream, msg);
 }
 
-void publish(int device_num)
+void publish_image(int device_num)
 {
   ros::NodeHandle nh;
 
@@ -79,7 +78,7 @@ void publish(int device_num)
     i2c.controlAnalogGain();
 
     frame_time_mutex.lock();
-    msg.header.stamp = ros::Time::now();
+    msg.header.stamp = frame_time;
     frame_time_mutex.unlock();
 
     SerializeToByteArray(msg.header, buffer);
@@ -124,7 +123,7 @@ int main(int argc, char **argv)
   ros::init(argc, argv, "ovc_embedded_driver_node");
   std::unique_ptr<std::thread> threads[NUM_CAMERAS + 1]; // one for IMU
   for (int i=0; i<NUM_CAMERAS; ++i)
-    threads[i] = std::make_unique<std::thread>(publish,i);
+    threads[i] = std::make_unique<std::thread>(publish_image,i);
   threads[NUM_CAMERAS] = std::make_unique<std::thread>(publish_imu);
 
   threads[NUM_CAMERAS]->join();
