@@ -27,6 +27,13 @@ class SPIDriver
 
   static constexpr unsigned char REG_BANK_SEL = 0x7F;
 
+  // Bank 2
+  static constexpr unsigned char GYRO_SMPLRT_DIV = 0x00;
+  static constexpr unsigned char GYRO_CONFIG_1 = 0x01;
+  // Only LSB for the accel divider
+  static constexpr unsigned char ACCEL_SMPLRT_DIV_2 = 0x11;
+  static constexpr unsigned char ACCEL_CONFIG = 0x14;
+
   static constexpr unsigned char CHIP_ID = 0xEA;
 
   static constexpr float DEFAULT_ACCEL_SENS = 16384; // LSB / g, TODO m/s?
@@ -47,6 +54,7 @@ class SPIDriver
 
   void Transmit(size_t tx_len, size_t rx_len);
 
+  void selectBank(int bank);
   void writeRegister(unsigned char addr, unsigned char val);
 
   unsigned char readRegister(unsigned char addr);

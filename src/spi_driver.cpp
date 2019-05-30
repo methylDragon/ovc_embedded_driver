@@ -23,7 +23,7 @@ SPIDriver::SPIDriver(int gpio_uio_num) :
   ioctl(spi_fd, SPI_IOC_WR_MODE, &mode);
 
   // Set bank
-  writeRegister(REG_BANK_SEL, 0);
+  selectBank(0);
   // Reset
   writeRegister(PWR_MGMT_1, 0x81);
   usleep(5000);
@@ -32,6 +32,17 @@ SPIDriver::SPIDriver(int gpio_uio_num) :
   usleep(5000);
   // Disable I2C
   writeRegister(USER_CTRL, 0x10);
+
+  // Bank 2
+  selectBank(2);
+  // Set divider
+  writeRegister(GYRO_SMPLRT_DIV, 4); // target 225 Hz
+  // Accelerometer
+  writeRegister(ACCEL_SMPLRT_DIV_2, 4); // target 225 Hz
+  // Back to register bank 0
+  selectBank(0);
+  
+
 
   // Read whoami
   unsigned char who_am_i = readRegister(WHO_AM_I);
@@ -42,6 +53,7 @@ SPIDriver::SPIDriver(int gpio_uio_num) :
   // Enable interrupts on channel 0
   uio.writeRegister(GIER, 1 << 31);
   uio.writeRegister(IER, 1);
+  //uio.writeRegister(8, 7); // 7 samples per frame
   // We need to write 3 to ISR register to toggle both (should only be 1?)
   uio.setResetRegisterMask(ISR, 3);
   // Configure interrupt on sample ready
@@ -56,6 +68,11 @@ SPIDriver::SPIDriver(int gpio_uio_num) :
     usleep(100000);
   }
   */
+}
+
+void SPIDriver::selectBank(int bank)
+{
+  writeRegister(REG_BANK_SEL, bank << 4);
 }
 
 void SPIDriver::writeRegister(unsigned char addr, unsigned char val)

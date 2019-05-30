@@ -1,12 +1,4 @@
 #include <string>
-#include <unordered_map>
-
-struct I2CRegister
-{
-  int16_t addr;
-  int size;
-  I2CRegister(int addr_, int size_) : addr(addr_), size(size_) {}
-};
 
 class I2CDriver
 {
@@ -55,8 +47,8 @@ class I2CDriver
   static constexpr uint16_t AE_DAMP_MAX_REG = 0x3110;
   static constexpr uint16_t AE_MAX_EXPOSURE_REG = 0x311C;
   static constexpr uint16_t AE_COARSE_INTEGRATION_TIME = 0x3164;
-  static constexpr uint16_t AE_EG_EXPOSURE_HI = 0x3164;
-  static constexpr uint16_t AE_EG_EXPOSURE_LO = 0x3166;
+  static constexpr uint16_t AE_EG_EXPOSURE_HI = 0x3166;
+  static constexpr uint16_t AE_EG_EXPOSURE_LO = 0x3168;
   static constexpr uint16_t CURRENT_GAINS = 0x312A;
 
   static constexpr uint16_t DATA_FORMAT_BITS = 0x31AC;
@@ -74,32 +66,35 @@ class I2CDriver
 
   static constexpr uint16_t LED_FLASH_CONTROL = 0x3270;
 
-  static constexpr uint16_t COLAMP_BYPASS = 0x3ED4;
-  static constexpr uint16_t ADC_GAIN_MSB = 0x3ED2;
-  static constexpr uint16_t ADC_GAIN_LSB = 0x3ED0;
-  static constexpr uint16_t COLAMP_GAIN = 0x3EEE;
+  static constexpr uint16_t DEFAULT_EXP_HIGH_THRESH = 426;
+  static constexpr uint16_t DEFAULT_EXP_LOW_THRESH = 150;
+  static constexpr uint16_t MAX_ANALOG_GAIN = 3;
+  static constexpr uint16_t MIN_ANALOG_GAIN = 0;
+
   int i2c_fd;
-  std::unordered_map<std::string, I2CRegister> reg_map;
 
-  int16_t readRegister(const std::string& reg_name);
-  void writeRegister(const std::string& reg_name, int val);
+  uint16_t exp_high_thresh, exp_low_thresh;
+  uint16_t cur_analog_gain;
 
-  void writeRegAddr(uint16_t reg_addr);
+  int16_t readRegister(uint16_t reg_addr);
+  void writeRegister(uint16_t reg_addr, int val);
 
-  void initRegMap();
   void configurePLL(int input_freq, int target_freq, int pixel_res);
   void configureGPIO();
   void configureMIPI();
+
+  void setAnalogGain(uint16_t gain);
 
   void programFromFile();
 
 public:
   I2CDriver(int i2c_num);
 
-  int16_t getIntegrationTime();
-  int16_t getCurrentGains();
+  uint16_t getIntegrationTime();
+  uint16_t getCurrentGains();
   void enableTestMode();
   void changeTestColor();
 
+  void controlAnalogGain();
 
 };

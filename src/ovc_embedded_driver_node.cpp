@@ -86,6 +86,7 @@ void publish(int device_num)
     }
 
     std::cout << "Got frame cam n. " << device_num << " Integration time = " << i2c.getIntegrationTime() << " Current gains = " << i2c.getCurrentGains() << std::endl;
+    i2c.controlAnalogGain();
     //fwrite(image_ptr, 1, 1280*800, fp);
 
     frame_time_mutex.lock();
@@ -134,7 +135,7 @@ void publish_imu()
       frame_time_mutex.unlock();
     }
     ++count;
-    if (count == 1125)
+    if (count == 225)
     {
       std::cout << ros::Time::now() << std::endl;
       std::cout << "1s of imu" << std::endl;
@@ -148,9 +149,9 @@ int main(int argc, char **argv)
 {
   ros::init(argc, argv, "ovc_embedded_driver_node");
   std::unique_ptr<std::thread> threads[NUM_CAMERAS + 1]; // one for IMU
+  for (int i=0; i<NUM_CAMERAS; ++i)
+    threads[i] = std::make_unique<std::thread>(publish,i);
   threads[NUM_CAMERAS] = std::make_unique<std::thread>(publish_imu);
-  //for (int i=0; i<NUM_CAMERAS; ++i)
-  //  threads[i] = std::make_unique<std::thread>(publish,i);
-  
+
   threads[NUM_CAMERAS]->join();
 }
