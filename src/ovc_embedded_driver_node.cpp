@@ -15,10 +15,10 @@
 
 #define NUM_CAMERAS 3
 
-const int DMA_DEVICES[NUM_CAMERAS] = {2,3,4}; // From hardware
+const int DMA_DEVICES[NUM_CAMERAS] = {5,6,7}; // From hardware
 const int I2C_DEVICES[NUM_CAMERAS] = {0,1,2}; // Files in /dev/i2c-, must match DMA
 
-const int IMU_SYNC_GPIO = 1; // ID of UIO device used with GPIO for syncing
+const int IMU_SYNC_GPIO = 4; // ID of UIO device used with GPIO for syncing
 
 const int COLOR_CAMERA_ID = 2; // The only color camera is CAM2
 
