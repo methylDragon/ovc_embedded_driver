@@ -3,7 +3,6 @@
 #include <fcntl.h>
 #include <sys/ioctl.h>
 #include <linux/spi/spidev.h>
-
 #include <iostream>
 
 #include <ovc_embedded_driver/spi_driver.h>
@@ -57,16 +56,6 @@ SPIDriver::SPIDriver(int gpio_uio_num) :
   uio.setResetRegisterMask(ISR, 3);
   // Configure interrupt on sample ready
   writeRegister(INT_ENABLE_1, 1);
-  /*
-  for (int i=0; i<100; ++i)
-  {
-    IMUReading imu(readSensors());
-    std::cout << "Reading n. " << i << std::endl;
-    std::cout << "a_x = " << imu.a_x << " a_y = " << imu.a_y << " a_z = " << imu.a_z << std::endl;
-    std::cout << "g_x = " << imu.g_x << " g_y = " << imu.g_y << " g_z = " << imu.g_z << std::endl;
-    usleep(100000);
-  }
-  */
   std::cout << "IMU Initialization done" << std::endl;
 }
 

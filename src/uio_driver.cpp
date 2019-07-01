@@ -3,9 +3,8 @@
 #include <sys/mman.h>
 #include <string>
 #include <iostream>
+
 #include <ovc_embedded_driver/uio_driver.h>
-
-
 
 UIODriver::UIODriver(int uio_num, size_t map_size)
 {

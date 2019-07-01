@@ -17,12 +17,6 @@ class VDMADriver
 
   static constexpr int NUM_FRAMEBUFFERS = 3;
 
-  // Value to write to UIO to reset the interrupt
-  const int IRQ_RST = 1;
-  const size_t SIZEX = 1280; // Add rows of embedded data
-  const size_t SIZEY = 800;
-  const size_t STRIDE = SIZEX;
-  const size_t IMAGE_SIZE = SIZEX * SIZEY;
   const size_t UIO_SIZE = 0x1000;
   // UIO is for AXI4 lite configuration, memory is to access DDR and images
   UIODriver uio;
@@ -47,4 +41,6 @@ public:
 
   VDMADriver(int uio_num, int cam_num, const std::vector<uint8_t>& sample_msg, size_t img_size);
   unsigned char* getImage();
+
+  std::vector<uint32_t> getCorners();
 };

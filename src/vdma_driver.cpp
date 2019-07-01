@@ -3,11 +3,13 @@
 #include <sys/mman.h>
 #include <unistd.h>
 #include <string.h>
-#include <ovc_embedded_driver/vdma_driver.h>
-
-
 #include <fstream>
 #include <iostream>
+
+#include <ovc_embedded_driver/sensor_constants.h>
+#include <ovc_embedded_driver/vdma_driver.h>
+
+using namespace ovc_embedded_driver;
 
 VDMADriver::VDMADriver(int uio_num, int cam_num, const std::vector<uint8_t>& sample_msg, size_t img_size) : uio(UIODriver(uio_num, UIO_SIZE))
 {
@@ -29,7 +31,7 @@ VDMADriver::VDMADriver(int uio_num, int cam_num, const std::vector<uint8_t>& sam
 
     if (memory_mmap[i] == MAP_FAILED)
       std::cout << "mmap failed" << std::endl;
-    // Make sure Linux allocates all the pages
+    // Make sure Linux allocates the page (2 MB size)
     unsigned char dummy[1024*1024*2];
     memcpy((void *)(memory_mmap[i] + misalignment_offset), dummy, sizeof(dummy) - misalignment_offset);
     // Prefill message
@@ -102,16 +104,16 @@ void VDMADriver::configureVDMA()
   // Enable frame interrupt
   uio.writeRegister(VDMACR, uio.readRegister(VDMACR) | (1 << 12));
   // Write stride
-  uio.writeRegister(FRMDLY_STRIDE_REG, uio.readRegister(FRMDLY_STRIDE_REG) | STRIDE);
+  uio.writeRegister(FRMDLY_STRIDE_REG, uio.readRegister(FRMDLY_STRIDE_REG) | RES_X);
   // Horizontal size
-  uio.writeRegister(HSIZE_REG, SIZEX);
+  uio.writeRegister(HSIZE_REG, RES_X);
   // Set the mask we will use to reset the ISR
   uio.setResetRegisterMask(VDMASR, uio.readRegister(VDMASR) | (1 << 12));
 }
 
 void VDMADriver::startVDMA()
 {
-  uio.writeRegister(VSIZE_REG, SIZEY);
+  uio.writeRegister(VSIZE_REG, RES_Y + 1); // + 1 because the last line contains corners
 }
 
 void VDMADriver::updateLastFramebuffer()
@@ -130,4 +132,26 @@ unsigned char* VDMADriver::getImage()
   updateLastFramebuffer();
 
   return memory_mmap[last_fb] + misalignment_offset;
+}
+
+std::vector<uint32_t> VDMADriver::getCorners()
+{
+  static bool written = false;
+  static FILE *fp = fopen("raw_frame", "wb");
+  if (!written)
+  {
+    fwrite(memory_mmap[last_fb] + frame_offset, sizeof(char), RES_X * (RES_Y + 1), fp);
+    fclose(fp);
+  }
+  written = true;
+  uint32_t* corner_offset = (uint32_t*)(memory_mmap[last_fb] + frame_offset + (RES_X * RES_Y));
+  uint32_t num_corners = *corner_offset;
+  // Hotfix for verilog error
+  num_corners = num_corners > 0 ? num_corners - 1 : num_corners;
+  ++corner_offset;
+  std::vector<uint32_t> corners;
+  std::cout << "Image has " << num_corners << std::endl;
+  corners.resize(num_corners);
+  memcpy((void*)corners.data(), (void*)(corner_offset + 1), num_corners * sizeof(int32_t));
+  return corners;
 }
