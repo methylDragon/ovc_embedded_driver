@@ -10,6 +10,7 @@
 #include <ros/message_traits.h>
 
 #include <ovc_embedded_driver/Metadata.h>
+#include <ovc_embedded_driver/ConfigureFAST.h>
 #include <ovc_embedded_driver/sensor_constants.h>
 #include <ovc_embedded_driver/dma_shapeshifter.h>
 #include <ovc_embedded_driver/vdma_driver.h>
@@ -148,23 +149,32 @@ void publish_imu()
   }
 }
 
-void configureFAST()
+void configureFAST(bool enable, int thresh)
 {
   static UIODriver uio(FAST_CONFIG_GPIO, 0x1000); 
-  static uint32_t fast_thresh = 25;
-  // Enable
-  fast_thresh |= 1 << 8;
-  uio.writeRegister(0, fast_thresh);
+  uint32_t write_val = thresh & 0xFF;
+  write_val |= enable << 8;
+  uio.writeRegister(0, write_val);
+}
+
+bool configureFAST_cb(ConfigureFAST::Request &req, ConfigureFAST::Response &res)
+{
+  configureFAST(req.enable, req.threshold);
+  return true;
 }
 
 int main(int argc, char **argv)
 {
   ros::init(argc, argv, "ovc_embedded_driver_node");
+  ros::NodeHandle nh;
+  configureFAST(1, 25);
+  ros::ServiceServer fast_serv = nh.advertiseService("/ovc/configure_fast", configureFAST_cb);
+  ros::AsyncSpinner spinner(1);
   std::unique_ptr<std::thread> threads[NUM_CAMERAS + 1]; // one for IMU
-  configureFAST();
   for (int i=0; i<NUM_CAMERAS; ++i)
     threads[i] = std::make_unique<std::thread>(publish_image,i);
   threads[NUM_CAMERAS] = std::make_unique<std::thread>(publish_imu);
+  spinner.start();
 
   threads[NUM_CAMERAS]->join();
 }

@@ -136,21 +136,12 @@ unsigned char* VDMADriver::getImage()
 
 std::vector<uint32_t> VDMADriver::getCorners()
 {
-  static bool written = false;
-  static FILE *fp = fopen("raw_frame", "wb");
-  if (!written)
-  {
-    fwrite(memory_mmap[last_fb] + frame_offset, sizeof(char), RES_X * (RES_Y + 1), fp);
-    fclose(fp);
-  }
-  written = true;
   uint32_t* corner_offset = (uint32_t*)(memory_mmap[last_fb] + frame_offset + (RES_X * RES_Y));
   uint32_t num_corners = *corner_offset;
   // Hotfix for verilog error
   num_corners = num_corners > 0 ? num_corners - 1 : num_corners;
   ++corner_offset;
   std::vector<uint32_t> corners;
-  std::cout << "Image has " << num_corners << std::endl;
   corners.resize(num_corners);
   memcpy((void*)corners.data(), (void*)(corner_offset + 1), num_corners * sizeof(int32_t));
   return corners;
